@@ -1,0 +1,8 @@
+{
+    "login": [
+        {"name": "K.Tamil Maghiznan", "password": "954@vsgs","present":27,"marks":[95,100,90,77,80]},
+        {"name": "R.Nandha Krishna", "password": "1308@vsgs","present":26,"marks":[80,70,89,78,69]},
+        {"name": "v.Dakchan Karthick", "password": "1204@vsgs","present":26,"marks":[85,76,94,78,89]},
+        {"name": "Teacher", "password": "1234","present":25,"marks":[75,80,88,78,79]}
+    ]
+}
