@@ -1,6 +1,7 @@
 import pygame
 import pygame as pg
 import os.path
+import google.generativeai as genai
 import random
 import sys
 from pygame.locals import *
@@ -8,6 +9,24 @@ import time
 import json
 import os
 import math
+
+genai.configure(api_key="AIzaSyBC2tKHZFF3y_8YxhxPIp51KgT8j_Z-Ayg")
+
+generation_config = {
+    "temperature": 1.5,
+    "top_p": 1,
+    "top_k": 64,
+    "max_output_tokens": 8192,
+    "response_mime_type": "text/plain",
+}
+
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-pro",
+    generation_config=generation_config,
+    system_instruction="you are the school AI for Vidhya Sagar Global School, Chengalpattu. Your name is VSAi...",
+)
+
+history = []
 
 pygame.init()
 
@@ -26,6 +45,7 @@ font2=pygame.font.Font('Assets/font.ttf',20)
 font3=pygame.font.Font('Assets/font2.ttf',35)
 font4=pygame.font.Font('Assets/font2.ttf',25)
 font5=pygame.font.Font('Assets/font2.ttf',40)
+font7=pygame.font.Font('Assets/font2.ttf',100)
 
 #Animations
 def option_state_animation_push():
@@ -402,9 +422,54 @@ test_cut=1.1
 test_newsize=(test_size[0]//test_cut,test_size[1]//test_cut)
 test_main=pygame.transform.smoothscale(test,test_newsize)
 
-#game=================================================================================================================================
+#ai
+font = pygame.font.Font(None, 28)  # Slightly larger font for spaciousness
+
+# UI Components
+input_box = pygame.Rect(300, winsize[1] - 100, winsize[0] - 370, 40)
+scrollable_area = pygame.Rect(300,60,winsize[0] - 370,winsize[1]-200)
+
+chat_lines = [("VSAi: Hi, I'm your personal AI assistant, how can I help you?", False)]  # Initial greeting
+user_input = ""
+scroll_offset = 0
+
+SPACING = 20 
+
+def wrap_text(text, font, max_width):
+    lines = []
+    words = text.split(" ")
+    line = ""
+    for word in words:
+        test_line = f"{line} {word}".strip()
+        if font.size(test_line)[0] > max_width:
+            lines.append(line.strip())
+            line = word
+        else:
+            line = test_line
+    lines.append(line.strip())
+    return lines
 
 
+def render_chat(surface, chat_lines, scroll_offset):
+    y = scrollable_area.top - scroll_offset
+    for line, is_user in chat_lines:
+        color = (200,200,200) if is_user else WHITE
+        for wrapped_line in wrap_text(line, font, scrollable_area.width):
+            if y + font.get_height() > scrollable_area.top:
+                text_surface = font.render(wrapped_line, True, color)
+                surface.blit(text_surface, (scrollable_area.left+10, y+10))
+            y += font.get_height()
+        y += SPACING
+        if y > scrollable_area.bottom:
+            break
+
+
+def chatbot_response(user_input):
+    chat_session = model.start_chat(history=history)
+    response = chat_session.send_message(user_input)
+    history.append({"role": "user", "parts": [user_input]})
+    history.append({"role": "model", "parts": [response.text]})
+    return response.text
 
 #Colours for button
 coloura=(70,70,70)
@@ -473,6 +538,7 @@ dis_pass=False
 i_pass=False
 FONT_SIZE=20
 add_text_op=False
+recover=1
 two=True
 rect_y,rect_y1,rect_y2=0,0,0
 rect_speed=30
@@ -643,7 +709,6 @@ while run:
             elif event.button == 4 and text=="News":  # Scroll down
                   rect_y2 += rect_speed
             
-            
         if event.type==pygame.MOUSEBUTTONDOWN:
             if button_recta.collidepoint(event.pos):
                   ss=1
@@ -730,6 +795,25 @@ while run:
             else:
                 add_text_1 += event.unicode
       
+      
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                if user_input.strip():
+                    chat_lines.append((f"You: {user_input}", True))
+                    bot_response = chatbot_response(user_input)
+                    chat_lines.append((f"VSAi: {bot_response}", False))
+                    user_input = ""
+                    scroll_offset = max(0, len(chat_lines) * (font.get_height() + SPACING) - scrollable_area.height)
+            elif event.key == pygame.K_BACKSPACE:
+                user_input = user_input[:-1]
+            else:
+                user_input += event.unicode
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 5:  # Scroll up
+                scroll_offset = max(scroll_offset - 20, 0)
+            elif event.button == 4:  # Scroll down
+                scroll_offset = min(scroll_offset + 20, len(chat_lines) * (font.get_height() + SPACING) - scrollable_area.height)
+      
       #Animation
       if option_state==0 and left_rect_state<=100:
         option_state_animation_push()
@@ -745,6 +829,7 @@ while run:
       #Option in options
       if text=="School":
         school_y=252
+        recover=1
 
         cover_rect=pygame.draw.rect(screen,(30,30,30),[left_rect_state+left2_rect_state,30,winsize[0],winsize[1]])
 
@@ -969,7 +1054,9 @@ while run:
             y_offset1 += rect_height + 10
 
       if text=="ScribeX":
-        pygame.draw.rect(screen,(30,30,30),[left_rect_state+left2_rect_state,30,10,winsize[1]])
+        if recover==1:
+           pygame.draw.rect(screen,(30,30,30),[left_rect_state+left2_rect_state,30,winsize[0],winsize[1]])
+           recover=0
 
         box=pygame.Rect(300,32+10,winsize[0]-200-105,winsize[1]-52)
         box_outter=pygame.draw.rect(screen,box_outter_colour,box,2,10)
@@ -1024,17 +1111,41 @@ while run:
                 None
 
       if text=="News":
+          recover=1
           cover_rect=pygame.draw.rect(screen,(30,30,30),[left_rect_state+left2_rect_state,30,winsize[0],winsize[1]])
 
-          '''y_offset2 = 20
+          y_offset2 = 20
           y_offset2 += FONT_SIZE + 20
 
           for hw in news_data["news"]:
             rect_height = draw_multiline_text_with_rect(screen, hw, (200+left_rect_state, y_offset2+rect_y2),FONT_SIZE + 5)
             y_offset2 += rect_height + 10
-            
-      top_rect=pygame.draw.rect(screen,(70,70,70),[0,0,winsize[0],30])'''
 
+      if text=="VSAI":
+          recover=1
+          pygame.draw.rect(screen,(30,30,30),[left_rect_state+left2_rect_state,30,winsize[0],winsize[1]])
+          
+          pygame.draw.rect(screen,(50,50,50),scrollable_area,0,15)
+          pygame.draw.rect(screen,(250,250,250),scrollable_area,2,15)
+
+          render_chat(screen, chat_lines, scroll_offset)
+
+          pygame.draw.rect(screen, (70,70,70), input_box, border_radius=15)
+          pygame.draw.rect(screen, (250,250,250), input_box,2,15)
+          text_surface = font.render(user_input, True, (255,255,255))
+          screen.blit(text_surface, (input_box.x + 10, input_box.y + 8))
+          
+          text_surface1 = font7.render("V", True, (150,150,150))
+          screen.blit(text_surface1, (left_rect_state + 50,200))
+          text_surface2 = font7.render("S", True, (150,150,150))
+          screen.blit(text_surface2, (left_rect_state + 50,300))
+          text_surface3 = font7.render("A", True, (150,150,150))
+          screen.blit(text_surface3, (left_rect_state + 50,400))
+          text_surface4 = font7.render("I", True, (150,150,150))
+          screen.blit(text_surface4, (left_rect_state + 50+20, 500))
+          
+      top_rect=pygame.draw.rect(screen,(70,70,70),[0,0,winsize[0],30])
+          
     #Change button colour
       if sss==1:
         coloura=(45,45,45)
